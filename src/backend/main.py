@@ -25,4 +25,4 @@ async def startup_event():
 
 @app.get("/")
 def home():
-    return "Welcome to my EduTrack Lite API"
+    return "Welcome to my Finanlytics AI API"

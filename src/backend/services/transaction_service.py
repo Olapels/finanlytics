@@ -1,5 +1,7 @@
 import io
 import os
+import re
+import json
 import pdfplumber
 import csv
 from typing import List, Optional
@@ -18,12 +20,15 @@ API_KEY = os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=API_KEY)
 
 class TransactionService:
-    async def create_transaction(self, db: AsyncSession, transaction_in: TransactionCreate, user_id: str):
-        transaction = Transactions(
+    def create_transaction(
+        self,
+        transaction_in: TransactionCreate,
+        user_id: str,
+    ) -> Transactions:
+        return Transactions(
             transaction_id=str(uuid4()),
             user_id=user_id,
             date=transaction_in.date,
-            time=transaction_in.time,
             money_in=transaction_in.money_in,
             money_out=transaction_in.money_out,
             category=transaction_in.category,
@@ -31,10 +36,7 @@ class TransactionService:
             description=transaction_in.description,
             balance=transaction_in.balance,
         )
-        db.add(transaction)
-        await db.commit()
-        await db.refresh(transaction)
-        return transaction
+
     
     async def upload_transactions(self, db: AsyncSession, file: UploadFile):
         filename = file.filename.lower()
@@ -79,7 +81,38 @@ class TransactionService:
         "response_mime_type": "application/json",
         "response_json_schema": TransactionList.model_json_schema()},
         )  
-        return response.text
+        raw_json = response.text
+        raw_json = re.sub(r"^```(?:json)?|```$", "", raw_json, flags=re.MULTILINE)
+        payload = json.loads(raw_json)
+
+        transactions = TransactionList.model_validate(payload).root
+
+        return transactions
+    
+    async def write_transactions_to_db(
+        self,
+        db: AsyncSession,
+        transactions: TransactionList,
+        user_id: str,
+    ) -> list[Transactions]:
+
+        transaction_objs = [
+            self.create_transaction(tx, user_id)
+            for tx in transactions
+        ]
+        db.add_all(transaction_objs)
+
+        try:
+            await db.commit()
+        except Exception:
+            await db.rollback()
+            raise
+
+        for tx in transaction_objs:
+            await db.refresh(tx)
+
+        return transaction_objs
+
 
     async def get_transactions_by_user(self, db: AsyncSession, user_id: str):
         result = await db.execute(select(Transactions).where(Transactions.user_id == user_id))

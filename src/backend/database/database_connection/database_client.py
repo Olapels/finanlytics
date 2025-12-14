@@ -1,7 +1,7 @@
 from database.database_connection.database_config import AsyncSessionLocal, Base, engine
 
 async def init_db() -> None:
-    from database.models import user_model
+    from database.models import user_model,transaction_model
     
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
