@@ -14,11 +14,12 @@ app.add_middleware(
 
 from routers.user_router import user_router
 from routers.transaction_router import transaction_router
+from routers.category_router import category_router
 from database.database_connection.database_client import init_db
 
 app.include_router(user_router, prefix="/users", tags=["users"])
 app.include_router(transaction_router, prefix="/transactions", tags=["transactions"])
-
+app.include_router(category_router, prefix="/categories", tags=["categories"])
 @app.on_event("startup")
 async def startup_event():
     await init_db()
@@ -26,3 +27,6 @@ async def startup_event():
 @app.get("/")
 def home():
     return "Welcome to my Finanlytics AI API"
+
+
+#https/tls for sending data securely from frontend to backend 

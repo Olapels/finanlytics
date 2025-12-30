@@ -110,3 +110,27 @@ Production Readiness
 - CORS configuration ready for multi-domain deployment
 
 **Deployment Status**: Currently optimized for local development with production infrastructure deployment scheduled for immediate rollout.
+
+
+Database Schema & ORM Models
+-----------------------------
+**SQLAlchemy entity relationships:**
+
+```
+User
+ ├── categories (one-to-many) → Category.owner
+ └── transactions (one-to-many) → Transaction.user
+
+Category
+ ├── owner (many-to-one) → User
+ └── transactions (one-to-many) → Transaction.category
+
+Transaction
+ ├── user (many-to-one) → User
+ └── category (many-to-one) → Category
+```
+
+**Key constraints:**
+- Users own categories and transactions
+- Categories are user-scoped (isolation via foreign key)
+- Transactions link to both user and category for efficient querying and validation
