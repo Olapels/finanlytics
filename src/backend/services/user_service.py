@@ -30,9 +30,18 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 
 class UserService:
-    """Service for user authentication and management"""
+    """Service for user authentication and management."""
 
     async def create_user(self, db: AsyncSession, user_in):
+        """Create and persist a new user with hashed password.
+
+        Args:
+            db (AsyncSession): Async database session.
+            user_in: Incoming user payload.
+
+        Returns:
+            User: Persisted user instance.
+        """
         hashed_password = self.hash_password(user_in.password)
 
         user = User(
@@ -49,19 +58,54 @@ class UserService:
         return user
 
     async def get_user_by_email(self, db: AsyncSession, email: str) -> Optional[User]:
+        """Fetch a user by email.
+
+        Args:
+            db (AsyncSession): Async database session.
+            email (str): Email address.
+
+        Returns:
+            User | None: Matching user or None.
+        """
         result = await db.execute(select(User).where(User.email == email))
         return result.scalar_one_or_none()
 
     async def get_user_by_id(self, db: AsyncSession, user_id: str) -> Optional[User]:
+        """Fetch a user by id.
+
+        Args:
+            db (AsyncSession): Async database session.
+            user_id (str): User identifier.
+
+        Returns:
+            User | None: Matching user or None.
+        """
         result = await db.execute(select(User).where(User.user_id == user_id))
         return result.scalar_one_or_none()
 
     @staticmethod
     def hash_password(password: str) -> str:
+        """Hash a plaintext password.
+
+        Args:
+            password (str): Plaintext password.
+
+        Returns:
+            str: Hashed password.
+        """
         return password_hash.hash(password)
 
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
+        """Verify a plaintext password against a hash.
+
+        Args:
+            plain_password (str): Input password.
+            hashed_password (str): Stored hash.
+
+        Returns:
+            bool: True if matches, else False.
+        """
         return password_hash.verify(plain_password, hashed_password)
 
     @staticmethod
@@ -69,6 +113,15 @@ class UserService:
         subject: str,
         expires_delta: Optional[timedelta] = None,
     ) -> str:
+        """Create a signed JWT access token.
+
+        Args:
+            subject (str): Subject identifier to embed.
+            expires_delta (timedelta | None): Optional expiration override.
+
+        Returns:
+            str: Encoded JWT token.
+        """
         expire = datetime.now(timezone.utc) + (
             expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         )
@@ -77,6 +130,14 @@ class UserService:
 
     @staticmethod
     def decode_token(token: str) -> dict:
+        """Decode and verify a JWT token.
+
+        Args:
+            token (str): Encoded JWT token.
+
+        Returns:
+            dict: Decoded payload.
+        """
         return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
     async def get_current_user(
@@ -84,6 +145,18 @@ class UserService:
         token: str = Depends(oauth2_scheme),
         db: AsyncSession = Depends(get_db),
     ) -> User:
+        """Resolve current user from a bearer token or raise 401.
+
+        Args:
+            token (str): Bearer token.
+            db (AsyncSession): Async database session.
+
+        Returns:
+            User: Authenticated user.
+
+        Raises:
+            HTTPException: When token is invalid or user not found.
+        """
         credentials_exception = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",

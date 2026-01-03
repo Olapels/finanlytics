@@ -23,6 +23,7 @@ Performance & Architecture
 - **Async PDF Processing**: Concurrent document parsing with `pdfplumber` optimization
 - **Smart Document Ingestion**: Handles multiple formats (.pdf, .txt) with automatic format detection
 - **Scalable Processing**: Async architecture handles multiple concurrent uploads without performance degradation
+- **RESTful API design** with pagination best practices on collection endpoints for consistent, predictable integration
 
 Project layout
 --------------

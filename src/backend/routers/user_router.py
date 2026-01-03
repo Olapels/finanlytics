@@ -19,6 +19,15 @@ async def register_user(
     user_in: UserCreateSchema,
     db=Depends(get_db),
 ):
+    """Register a new user and return the created profile.
+
+    Args:
+        user_in (UserCreateSchema): Registration payload.
+        db: Database session.
+
+    Returns:
+        UserResponseSchema: Created user profile.
+    """
     existing_user = await user_service.get_user_by_email(db, user_in.email)
     if existing_user:
         raise HTTPException(
@@ -35,6 +44,15 @@ async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db=Depends(get_db),
 ):
+    """Issue an access token for valid credentials.
+
+    Args:
+        form_data (OAuth2PasswordRequestForm): Login form with username/password.
+        db: Database session.
+
+    Returns:
+        dict: Access token payload.
+    """
     user = await user_service.get_user_by_email(db, form_data.username)
 
     if not user or not user_service.verify_password(
@@ -57,6 +75,14 @@ async def login(
 async def get_me(
     current_user=Depends(user_service.get_current_user),
 ):
+    """Return the authenticated user's profile.
+
+    Args:
+        current_user: Injected authenticated user.
+
+    Returns:
+        UserResponseSchema: Current user profile.
+    """
     return current_user
 
 

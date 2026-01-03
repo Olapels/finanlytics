@@ -12,8 +12,15 @@ class CategoryAlreadyExistsError(Exception):
 
 class CategoryService:
     async def get_category_by_name(self, db, category_name_in: str, user_id: Optional[str] = None) -> Optional[int]:
-        """
-        Return the category_id for the given name scoped to the user (or system).
+        """Fetch a category id by name scoped to system and optionally user.
+
+        Args:
+            db: Database session.
+            category_name_in (str): Category name to find.
+            user_id (str | None): Optional user scope.
+
+        Returns:
+            int | None: Category id if found.
         """
         # normalized = category_name_in.strip().lower()
         query = select(Category.category_id).where(
@@ -27,10 +34,32 @@ class CategoryService:
         return category_id
     
     async def get_user_categories(self, db, user_id: str) -> List[Dict]:
+        """List category names available to a user (system + user-owned).
+
+        Args:
+            db: Database session.
+            user_id (str): User identifier.
+
+        Returns:
+            list[str]: Available category names.
+        """
         categories = await db.execute(select(Category.category_name).where((Category.user_id == user_id) | (Category.user_id == None)))
         return categories.scalars().all()
 
     async def create_user_category(self, db, user_id: str, category_in: str) -> str:
+        """Create a new category for a user, enforcing uniqueness.
+
+        Args:
+            db: Database session.
+            user_id (str): Owner of the category.
+            category_in (str): Category name input.
+
+        Returns:
+            str: Normalized category name.
+
+        Raises:
+            CategoryAlreadyExistsError: When category already exists.
+        """
         normalized_name = category_in.lower()
         stmt = select(Category).where(
             (Category.user_id == user_id) &
@@ -68,6 +97,13 @@ class CategoryService:
         user_id: str,
         category_id: int
     ) -> None:
+        """Soft-delete a user-owned category if it is not system-defined.
+
+        Args:
+            db: Database session.
+            user_id (str): Owner id.
+            category_id (int): Category identifier.
+        """
 
         stmt = select(Category).where(
             (Category.category_id == category_id) &
@@ -91,5 +127,13 @@ class CategoryService:
     
 
     async def get_all_categories(self, db) -> List:
+        """Return all active categories (system and user).
+
+        Args:
+            db: Database session.
+
+        Returns:
+            list[str]: All active category names.
+        """
         result = await db.execute(select(Category.category_name).where(Category.is_deleted.is_(False)))
         return result.scalars().all()

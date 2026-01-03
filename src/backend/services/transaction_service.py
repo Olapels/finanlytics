@@ -21,16 +21,28 @@ from backend.database.models.categories_model import DEFAULT_CATEGORIES
 from typing import Union
 from sqlalchemy import func,case,extract
 load_dotenv()
+
 API_KEY = os.getenv("GOOGLE_API_KEY2")
 client = genai.Client(api_key=API_KEY)
 
 class TransactionService:
+    """Service layer for transaction ingestion, enrichment, and summaries."""
     async def create_transaction(
         self,
          db: AsyncSession,
         transaction_in: TransactionCreate,
         user_id: str,
     ) -> Transactions:
+        """Build a transaction model, ensuring category exists for the user.
+
+        Args:
+            db (AsyncSession): Async database session.
+            transaction_in (TransactionCreate): Incoming transaction payload.
+            user_id (str): Owner of the transaction.
+
+        Returns:
+            Transactions: ORM instance ready for persistence.
+        """
         category_in = transaction_in.category.strip().title()
         cat_id = await CategoryService().get_category_by_name(db, category_in, user_id)
         if not cat_id:
@@ -48,6 +60,15 @@ class TransactionService:
         )
 
     async def upload_transactions(self, db: AsyncSession, file: UploadFile):
+        """Read uploaded statement content from txt or pdf.
+
+        Args:
+            db (AsyncSession): Async database session (unused but kept for signature consistency).
+            file (UploadFile): Uploaded file object.
+
+        Returns:
+            str | None: Extracted text content or None if unsupported format.
+        """
         filename = file.filename.lower()
         file_bytes = await file.read()
 
@@ -59,15 +80,21 @@ class TransactionService:
         if filename.endswith(".pdf"):
             file_stream = io.BytesIO(file_bytes)
             with pdfplumber.open(file_stream) as pdf:
-                # pages_text = [
-                #     page.extract_text() or "" 
-                #     for page in pdf.pages
-                # ]
-                # return "\n".join(pages_text)
-                first_page = pdf.pages[0]
-                return first_page.extract_text() or ""
+                pages_text = [
+                    page.extract_text() or "" 
+                    for page in pdf.pages
+                ]
+                return "\n".join(pages_text)
     
     async def extraction_transactions_from_text(self,raw_text: str) -> List[dict]:
+        """Call Gemini to extract structured transactions from raw statement text.
+
+        Args:
+            raw_text (str): Full statement text.
+
+        Returns:
+            list[TransactionCreate]: Parsed transactions validated against schema.
+        """
         prompt = f"""
                 Extract ALL financial transactions from the following bank statement text.
 
@@ -104,6 +131,16 @@ class TransactionService:
         return transactions
     
     async def write_transactions_to_db(self,db:AsyncSession, transactions_list: List[Transactions], user_id: str) -> bool:
+        """Persist a collection of transactions for a user.
+
+        Args:
+            db (AsyncSession): Async database session.
+            transactions_list (list[Transactions]): Transactions to save.
+            user_id (str): Owner of the transactions.
+
+        Returns:
+            bool: True when commit succeeds.
+        """
         for transaction_in in transactions_list:
             db.add(transaction_in)
         await db.commit()
@@ -111,6 +148,15 @@ class TransactionService:
 
 
     async def get_transactions_by_user(self, db: AsyncSession, user_id: str):
+        """Return all transactions for a user with category names.
+
+        Args:
+            db (AsyncSession): Async database session.
+            user_id (str): User identifier.
+
+        Returns:
+            list[dict]: Transaction dicts including category names.
+        """
         result = await db.execute(
             select(Transactions)
             .options(selectinload(Transactions.category))
@@ -125,8 +171,57 @@ class TransactionService:
         }
         for tx in result.scalars()
     ]
+
+    async def list_transactions(
+        self,
+        db: AsyncSession,
+        user_id: str,
+        limit: int,
+        offset: int,
+    ) -> tuple[list[dict], int]:
+        """Return paginated transactions with a total count for a user.
+
+        Args:
+            db (AsyncSession): Async database session.
+            user_id (str): User identifier.
+            limit (int): Maximum records to return.
+            offset (int): Records to skip.
+
+        Returns:
+            tuple[list[dict], int]: List of transactions and total count.
+        """
+        base_query = (
+            select(Transactions)
+            .options(selectinload(Transactions.category))
+            .where(Transactions.user_id == user_id)
+            .order_by(Transactions.date.desc(), Transactions.transaction_id.desc())
+        )
+
+        total = await db.scalar(select(func.count()).select_from(base_query.subquery()))
+
+        result = await db.execute(base_query.limit(limit).offset(offset))
+        items = [
+            {
+                "description": tx.description,
+                "date": tx.date,
+                "amount": tx.amount,
+                "transaction_type": tx.transaction_type,
+                "category": tx.category.category_name,
+            }
+            for tx in result.scalars()
+        ]
+        return items, int(total or 0)
     
     async def get_income_summary(self, db: AsyncSession, user_id: str):
+        """Sum total income for a user.
+
+        Args:
+            db (AsyncSession): Async database session.
+            user_id (str): User identifier.
+
+        Returns:
+            dict: Mapping of total income.
+        """
         result = await db.execute(
             select(Transactions)
             .where(
@@ -136,8 +231,17 @@ class TransactionService:
         )
         total_income = sum(tx.amount for tx in result.scalars())
         return {"total_income": total_income}
-    
+
     async def get_expense_summary(self, db: AsyncSession, user_id: str):
+        """Sum total expenses for a user.
+
+        Args:
+            db (AsyncSession): Async database session.
+            user_id (str): User identifier.
+
+        Returns:
+            dict: Mapping of total expenses.
+        """
         result = await db.execute(
             select(Transactions)
             .where(
@@ -149,6 +253,15 @@ class TransactionService:
         return {"total_expense": total_expense}
     
     async def get_spending_category_summary(self, db: AsyncSession, user_id: str):
+        """Aggregate expenses by category for a user.
+
+        Args:
+            db (AsyncSession): Async database session.
+            user_id (str): User identifier.
+
+        Returns:
+            dict[str, float]: Spend per category.
+        """
         result = await db.execute(
             select(Transactions)
             .options(selectinload(Transactions.category))
@@ -166,6 +279,17 @@ class TransactionService:
         return category_summary
     
     async def get_transactions_by_month(self, db: AsyncSession, user_id: str, month: int, year: int):
+        """List transactions for a user within a specific month.
+
+        Args:
+            db (AsyncSession): Async database session.
+            user_id (str): User identifier.
+            month (int): Target month (1-12).
+            year (int): Target year (e.g., 2024).
+
+        Returns:
+            list[dict]: Transactions within the month.
+        """
         next_month = month + 1
         next_year = year
         if next_month > 12:
@@ -192,6 +316,17 @@ class TransactionService:
             for tx in transactions
         ]
     async def get_income_by_month(self, db: AsyncSession, user_id: str, month: int, year: int):
+        """Sum income for a user within a specific month.
+
+        Args:
+            db (AsyncSession): Async database session.
+            user_id (str): User identifier.
+            month (int): Target month (1-12).
+            year (int): Target year.
+
+        Returns:
+            dict: Mapping of total income for the month.
+        """
         next_month = month + 1
         next_year = year
         if next_month > 12:
@@ -210,6 +345,17 @@ class TransactionService:
         return {"total_income": total_income}
     
     async def get_expense_by_month(self, db: AsyncSession, user_id: str, month: int, year: int):
+        """Sum expenses for a user within a specific month.
+
+        Args:
+            db (AsyncSession): Async database session.
+            user_id (str): User identifier.
+            month (int): Target month (1-12).
+            year (int): Target year.
+
+        Returns:
+            dict: Mapping of total expenses for the month.
+        """
         next_month = month + 1
         next_year = year
         if next_month > 12:
@@ -228,6 +374,15 @@ class TransactionService:
         return {"total_expense": total_expense}
     
     async def get_monthly_summary(self, db: AsyncSession, user_id: str):
+        """Summarize income and expenses grouped by month for a user.
+
+        Args:
+            db (AsyncSession): Async database session.
+            user_id (str): User identifier.
+
+        Returns:
+            list[dict]: Monthly totals keyed by month/year.
+        """
         results = await db.execute(select(extract('month', Transactions.date).label('month'),
                                            extract('year', Transactions.date).label('year'),
                                            #using func to chain case to sum
@@ -248,46 +403,4 @@ class TransactionService:
         
         return summaries
     
-
-
-
 transaction_service = TransactionService()
-
-
-#  result = await db.execute(
-#             select(
-#                 func.extract('month', Transactions.date).label('month'),
-#                 func.extract('year', Transactions.date).label('year'),
-#                 func.sum(
-#                     func.case(
-#                         (Transactions.transaction_type == "INCOME", Transactions.amount),
-#                         else_=0
-#                     )
-#                 ).label('total_income'),
-#                 func.sum(
-#                     func.case(
-#                         (Transactions.transaction_type == "EXPENSE", Transactions.amount),
-#                         else_=0
-#                     )
-#                 ).label('total_expense')
-#             )
-#             .where(Transactions.user_id == user_id)
-#             .group_by(
-#                 func.extract('year', Transactions.date),
-#                 func.extract('month', Transactions.date)
-#             )
-#             .order_by(
-#                 func.extract('year', Transactions.date),
-#                 func.extract('month', Transactions.date)
-#             )
-#         )
-        
-#         summaries = [
-#             {
-#                 "month": int(row.month),
-#                 "year": int(row.year),
-#                 "total_income": row.total_income or 0,
-#                 "total_expense": row.total_expense or 0
-#             }
-#             for row in result.all()
-#         ]
