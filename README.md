@@ -1,29 +1,35 @@
 Finanlytics
 ===================
 
-**High-performance financial data engine with RESTful endpoints that:** 
-- **Delivers clean, fast, intuitive analytics across each user’s statements via well-structured APIs** 
-- **Turns uploaded PDFs/text into actionable insights using AI-powered extraction** 
-- **Lets users post their own transactions with predefined categories and add custom categories when needed**
-
+**High-performance backend infrastructure with RESTful endpoints that:** 
+- Delivers clean, fast analytics for each user’s statements with well-structured, paginated APIs
+- Turns uploaded PDFs/text into actionable transaction data via AI-powered extraction and validation
+- Supports manual transaction entry, predefined categories, and user-defined categories for precise tracking
 
 
 Performance & Architecture
 --------------------------
 - **Sub-second response times** via async PostgreSQL operations
-- **Zero-downtime authentication** with JWT bearer tokens
-- **Intelligent document processing** supporting both PDF and text formats
-- **Real-time transaction validation** with automatic data normalization
-- **RESTful API design** across all endpoints for clear, consistent integration
-- **FastAPI + Pydantic v2**: Type-safe API with automatic validation and serialization
+
+- **JWT Authentication** with bearer tokens for zero-downtime auth
+
+- **RESTful API design** with pagination on collection endpoints for clear, predictable integration
+
+- **FastAPI + Pydantic v2**: Type-safe APIs with automatic validation and serialization
+
 - **Async SQLAlchemy + PostgreSQL**: Non-blocking database operations for maximum throughput
-- **AI for NLP**: State-of-the-art language model for financial document understanding
-- **JWT Authentication**: Stateless, scalable security with OAuth2 compliance
-- **ORM Pythonic functions**: dynamic & safety first Object Relational Modelling preventing malware attacks via native sql injections.
-- **Async PDF Processing**: Concurrent document parsing with `pdfplumber` optimization
+
+- **AI for NLP**: State-of-the-art model for financial document understanding
+
+- **Real-time transaction validation** with automatic data normalization
+
+- **Async PDF Processing**: Concurrent parsing with `pdfplumber` optimization
+
 - **Smart Document Ingestion**: Handles multiple formats (.pdf, .txt) with automatic format detection
+
 - **Scalable Processing**: Async architecture handles multiple concurrent uploads without performance degradation
-- **RESTful API design** with pagination best practices on collection endpoints for consistent, predictable integration
+
+
 
 Project layout
 --------------
@@ -49,7 +55,7 @@ src/backend/
     database_connection/          # Async engine/session and init hook
       database_config.py
       database_client.py
-      
+
     models/                       # SQLAlchemy models
       user_model.py
       transaction_model.py
