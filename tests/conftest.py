@@ -12,4 +12,4 @@ if str(SRC) not in sys.path:
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
 os.environ.setdefault("ALGORITHM", "HS256")
 os.environ.setdefault("GEMINI_API_KEY", "test-gemini-key")
-
+os.environ.setdefault("GOOGLE_API_KEY2", "test-google-api-key")

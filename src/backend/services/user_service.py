@@ -13,8 +13,12 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-from database.models.user_model import User
-from database.database_connection.database_client import get_db
+from backend.database.models import User
+from backend.database.database_connection.database_client import get_db
+
+#for some of my highlevel security services implement stored procedures 
+#ORMs under the hood use parameterized sql queries that preject SQL injection attacks
+#will implement more security long term
 
 password_hash = PasswordHash.recommended()
 

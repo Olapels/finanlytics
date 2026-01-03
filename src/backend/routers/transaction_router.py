@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import UploadFile
-from database.database_connection.database_client import get_db
-from services.transaction_service import transaction_service
-from services.user_service import user_service
-from database.models.user_model import User
-from schemas.transaction_schema import TransactionCreate, TransactionList, TransactionRead
+from backend.database.database_connection.database_client import get_db
+from backend.services.transaction_service import transaction_service
+from backend.services.user_service import user_service
+from backend.database.models import User
+from backend.schemas.transaction_schema import TransactionCreate, TransactionList, TransactionRead
 
 
 transaction_router = APIRouter()
@@ -45,6 +45,18 @@ async def get_expense_summary(db: AsyncSession = Depends(get_db), current_user: 
     summary = await transaction_service.get_expense_summary(db, user_id)
     return summary
 
+@transaction_router.get("/monthly_income_summary")
+async def get_monthly_income_summary(month_input:int,year_input:int,db: AsyncSession = Depends(get_db), current_user: User = Depends(user_service.get_current_user)):
+    user_id = current_user.user_id
+    summary = await transaction_service.get_income_by_month(db, user_id,month=month_input,year=year_input)
+    return summary
+
+@transaction_router.get("/monthly_expense_summary")
+async def get_monthly_expense_summary(month_input:int, year_input:int, db: AsyncSession = Depends(get_db), current_user: User = Depends(user_service.get_current_user)):
+    user_id = current_user.user_id
+    summary = await transaction_service.get_expense_by_month(db, user_id, month=month_input, year=year_input)
+    return summary
+
 @transaction_router.post("/input_transactions")
 async def write_transactions(transaction_in: TransactionCreate, db: AsyncSession = Depends(get_db),current_user: User = Depends(user_service.get_current_user)):
     user_id = current_user.user_id
@@ -59,4 +71,10 @@ async def write_transactions(transaction_in: TransactionCreate, db: AsyncSession
 async def get_spending_category_summary(db: AsyncSession = Depends(get_db), current_user: User = Depends(user_service.get_current_user)):
     user_id = current_user.user_id
     summary = await transaction_service.get_spending_category_summary(db, user_id)
+    return summary
+
+@transaction_router.get("/monthly_summary")
+async def get_monthly_summary(db: AsyncSession = Depends(get_db), current_user: User = Depends(user_service.get_current_user)):
+    user_id = current_user.user_id
+    summary = await transaction_service.get_monthly_summary(db, user_id)
     return summary

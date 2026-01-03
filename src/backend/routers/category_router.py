@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from database.database_connection.database_client import get_db
-from services.category_service import CategoryService,CategoryAlreadyExistsError
-from services.user_service import user_service
-from database.models.user_model import User
-from schemas.categories_schema import CategoryCreate,CategoryOut
+from backend.database.database_connection.database_client import get_db
+from backend.services.category_service import CategoryService, CategoryAlreadyExistsError
+from backend.services.user_service import user_service
+from backend.database.models import User
+from backend.schemas.categories_schema import CategoryCreate, CategoryOut
 from typing import List, Dict
 
 

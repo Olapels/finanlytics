@@ -1,6 +1,6 @@
-from sqlalchemy import Column, String, Float,Date,ForeignKey,Integer, Enum as SqlEnum
+from sqlalchemy import Column, String, Float, Date, ForeignKey, Integer, Enum as SqlEnum
 from sqlalchemy.orm import relationship
-from database.database_connection.database_client import Base
+from backend.database.database_connection.database_client import Base
 from enum import Enum
 
 class TransactionTypeEnum(Enum):

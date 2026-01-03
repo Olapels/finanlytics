@@ -1,6 +1,6 @@
-from typing import Optional, List,Dict
-from database.models.categories_model import Category
-from schemas.categories_schema import CategoryCreate
+from typing import Optional, List, Dict
+from backend.database.models.categories_model import Category
+from backend.schemas.categories_schema import CategoryCreate
 import datetime
 from datetime import datetime, timezone
 from sqlalchemy import select

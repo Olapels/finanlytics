@@ -1,5 +1,6 @@
 import pytest
 from datetime import timedelta
+from fastapi import HTTPException
 
 from backend.services.user_service import user_service, User
 
@@ -9,8 +10,8 @@ def test_hash_and_verify_password_round_trip():
     hashed = user_service.hash_password(password)
 
     assert hashed != password
-    assert user_service.verify_password(password, hashed) is True
-    assert user_service.verify_password("wrong", hashed) is False
+    assert user_service.verify_password(password, hashed) == True
+    assert user_service.verify_password("wrong", hashed) == False
 
 
 def test_create_and_decode_token_contains_subject_and_exp():
@@ -50,5 +51,7 @@ async def test_get_current_user_raises_on_invalid_token(monkeypatch):
 
     monkeypatch.setattr(user_service, "get_user_by_id", fake_get_user_by_id)
 
-    with pytest.raises(Exception):
+    with pytest.raises(HTTPException) as excinfo:
         await user_service.get_current_user(token="invalid.token.value", db=None)
+
+    assert excinfo.value.status_code == 401

@@ -1,5 +1,5 @@
 from sqlalchemy import Column,Integer, String,Boolean,ForeignKey, DateTime,UniqueConstraint,select
-from database.database_connection.database_client import Base
+from backend.database.database_connection.database_client import Base
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.asyncio import AsyncSession
 import datetime

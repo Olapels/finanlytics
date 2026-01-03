@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, ConfigDict
 from datetime import datetime
 
 class UserCreateSchema(BaseModel):
@@ -19,8 +19,7 @@ class UserResponseSchema(BaseModel):
     last_name: str
     create_date: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True) 
 
 
 

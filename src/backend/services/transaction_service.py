@@ -10,15 +10,16 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from schemas.transaction_schema import TransactionList, TransactionCreate
-from database.models.transaction_model import Transactions
-from services.category_service import CategoryService
+from backend.schemas.transaction_schema import TransactionList, TransactionCreate
+from backend.database.models.transaction_model import Transactions
+from backend.services.category_service import CategoryService
 from fastapi import UploadFile
 from google import genai
 from dotenv import load_dotenv
 from collections.abc import Iterable
-from database.models.categories_model import DEFAULT_CATEGORIES
+from backend.database.models.categories_model import DEFAULT_CATEGORIES
 from typing import Union
+from sqlalchemy import func,case,extract
 load_dotenv()
 API_KEY = os.getenv("GOOGLE_API_KEY2")
 client = genai.Client(api_key=API_KEY)
@@ -163,6 +164,130 @@ class TransactionService:
                 category_summary[category_name] = 0.0
             category_summary[category_name] += tx.amount
         return category_summary
+    
+    async def get_transactions_by_month(self, db: AsyncSession, user_id: str, month: int, year: int):
+        next_month = month + 1
+        next_year = year
+        if next_month > 12:
+            next_month = 1
+            next_year += 1
+        result = await db.execute(
+            select(Transactions)
+            .options(selectinload(Transactions.category))
+            .where(
+                Transactions.user_id == user_id,
+                Transactions.date >= datetime(year, month, 1),
+                Transactions.date < datetime(next_year, next_month, 1)
+            )
+        )
+        transactions = result.scalars().all()
+        return [
+            {
+                "description": tx.description,
+                "date": tx.date,
+                "amount": tx.amount,
+                "transaction_type": tx.transaction_type,
+                "category": tx.category.category_name,
+            }
+            for tx in transactions
+        ]
+    async def get_income_by_month(self, db: AsyncSession, user_id: str, month: int, year: int):
+        next_month = month + 1
+        next_year = year
+        if next_month > 12:
+            next_month = 1
+            next_year += 1
+        result = await db.execute(
+            select(Transactions)
+            .where(
+                Transactions.user_id == user_id,
+                Transactions.transaction_type == "INCOME",
+                Transactions.date >= datetime(year, month, 1),
+                Transactions.date < datetime(next_year, next_month, 1)
+            )
+        )
+        total_income = sum(tx.amount for tx in result.scalars())
+        return {"total_income": total_income}
+    
+    async def get_expense_by_month(self, db: AsyncSession, user_id: str, month: int, year: int):
+        next_month = month + 1
+        next_year = year
+        if next_month > 12:
+            next_month = 1
+            next_year += 1
+        result = await db.execute(
+            select(Transactions)
+            .where(
+                Transactions.user_id == user_id,
+                Transactions.transaction_type == "EXPENSE",
+                Transactions.date >= datetime(year, month, 1),
+                Transactions.date < datetime(next_year, next_month, 1)
+            )
+        )
+        total_expense = sum(tx.amount for tx in result.scalars())
+        return {"total_expense": total_expense}
+    
+    async def get_monthly_summary(self, db: AsyncSession, user_id: str):
+        results = await db.execute(select(extract('month', Transactions.date).label('month'),
+                                           extract('year', Transactions.date).label('year'),
+                                           #using func to chain case to sum
+                                           func.sum(case(
+                                               (Transactions.transaction_type == "INCOME", Transactions.amount), else_=0)).label('total_income'),
+                                           func.sum(case((Transactions.transaction_type == "EXPENSE", Transactions.amount), else_=0)).label('total_expense'))
+                                  .where(Transactions.user_id == user_id)
+                                  .group_by(extract('year', Transactions.date), extract('month', Transactions.date))
+                                  .order_by(extract('year', Transactions.date), extract('month', Transactions.date)))
+        summaries = [
+            {
+                "month": int(row.month),
+                "year": int(row.year),
+                "total_income": row.total_income or 0,
+                "total_expense": row.total_expense or 0
+            }
+            for row in results.all()]
+        
+        return summaries
+    
+
 
 
 transaction_service = TransactionService()
+
+
+#  result = await db.execute(
+#             select(
+#                 func.extract('month', Transactions.date).label('month'),
+#                 func.extract('year', Transactions.date).label('year'),
+#                 func.sum(
+#                     func.case(
+#                         (Transactions.transaction_type == "INCOME", Transactions.amount),
+#                         else_=0
+#                     )
+#                 ).label('total_income'),
+#                 func.sum(
+#                     func.case(
+#                         (Transactions.transaction_type == "EXPENSE", Transactions.amount),
+#                         else_=0
+#                     )
+#                 ).label('total_expense')
+#             )
+#             .where(Transactions.user_id == user_id)
+#             .group_by(
+#                 func.extract('year', Transactions.date),
+#                 func.extract('month', Transactions.date)
+#             )
+#             .order_by(
+#                 func.extract('year', Transactions.date),
+#                 func.extract('month', Transactions.date)
+#             )
+#         )
+        
+#         summaries = [
+#             {
+#                 "month": int(row.month),
+#                 "year": int(row.year),
+#                 "total_income": row.total_income or 0,
+#                 "total_expense": row.total_expense or 0
+#             }
+#             for row in result.all()
+#         ]

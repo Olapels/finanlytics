@@ -3,13 +3,13 @@ from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
 from typing import Annotated
 
-from services.user_service import user_service
-from schemas.user_schema import (
+from backend.services.user_service import user_service
+from backend.schemas.user_schema import (
     UserCreateSchema,
     UserLoginSchema,
     UserResponseSchema,
 )
-from database.database_connection.database_client import get_db
+from backend.database.database_connection.database_client import get_db
 
 user_router = APIRouter()
 
