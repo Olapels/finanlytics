@@ -1,0 +1,25 @@
+
+services:
+  backend:
+    build: .
+    container_name: finanlytics-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GOOGLE_API_KEY2=${GOOGLE_API_KEY2}
+      - SECRET_KEY=${SECRET_KEY}
+      - ALGORITHM=${ALGORITHM}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
+      - db_user=${db_user}
+      - db_password=${db_password}
+      - db_host=${db_host}
+      - db_port=${db_port}
+      - dbname=${dbname}
+    networks:
+      - finanlytics-network
+    restart: unless-stopped
+
+networks:
+  finanlytics-network:
+    driver: bridge
