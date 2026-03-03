@@ -66,6 +66,9 @@ src/backend/
 
 Getting started
 ---------------
+
+**Option 1: Local development**
+
 1) Prerequisites: Python 3.11+, Poetry, and a reachable PostgreSQL instance (default URL points to `postgresql+asyncpg://.../finanlytics` on port 5433).  
 2) Install dependencies:
 ```
@@ -76,6 +79,27 @@ poetry install
 poetry run uvicorn backend.main:app --reload --app-dir src
 ```
 4) Browse interactive docs at `http://localhost:8000/docs`.
+
+**Option 2: Docker**
+
+1) Create a `.env` file in the `backend` directory with required environment variables:
+```
+GOOGLE_API_KEY=<your_key>
+GOOGLE_API_KEY2=<your_key>
+SECRET_KEY=<your_secret>
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+db_user=<db_user>
+db_password=<db_password>
+db_host=<db_host>
+db_port=5432
+dbname=finanlytics
+```
+2) Build and run with Docker Compose:
+```
+docker-compose up --build
+```
+3) The API will be available at `http://localhost:8000/docs`.
 
 Packaging & reuse
 -----------------
